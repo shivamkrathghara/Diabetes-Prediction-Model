@@ -1,0 +1,166 @@
+library(tidyverse)
+library(faraway)
+library(caret)
+library(ROCR)
+library(DT)
+library(caTools)
+ds=pima
+write.csv(ds,"diabetes.csv")
+ds <- read.csv("diabetes.csv")[,-1]
+
+ds %>% str()
+
+# renaming test as target, change 1 as present and 0 as not present  and check its count
+
+
+names(ds)[names(ds)=='test']<-'target'
+ds$target <- factor(ds$target)
+levels(ds$target)<-c("not present",'present')
+
+
+ds %>% 
+  ggplot(aes(x=(target)))+ 
+  geom_bar(colour='slateblue1',fill='springgreen')+ 
+  geom_text(aes(label=..count..),stat='count',vjust=-0.2)+ 
+  theme_calc()+ 
+  scale_colour_calc()+ 
+  xlab('Disease')+ 
+  ylab('Count Of Patients')
+
+# checking the Number of times Pregnant
+
+ds %>% 
+  ggplot(aes(x=(pregnant)))+ 
+  geom_bar(colour='burlywood4',fill='yellow1')+ 
+  geom_text(aes(label=..count..),stat='count',vjust=-0.2)+
+  xlab('Number of Times Pregnant')+ylab('Count Of Women')
+
+# Now looking at continous Variables 
+summary(ds)
+
+# bmi, glucose level , triceps , etc should never be zero , these are the missing values 
+# in our data 
+ds$bmi[ds$bmi==0] <-median(ds$bmi,na.rm=T)
+ds$glucose[ds$glucose==0] <- median(ds$glucose,na.rm=T)
+ds$insulin[ds$insulin==0] <- median(ds$insulin,na.rm=T)
+
+
+
+# finding the Missing Percentages in each column 
+find_miss_per<-function(x){sum(is.na(x))/length(is.na(x))*100}
+
+missings <- sort(apply(ds,2,find_miss_per))
+print(missings)
+
+# all the anomalies values in the  data have been removed , Now we try to understand the 
+# continous features and their relation ship with categorical variables 
+
+write.csv(ds,"diabetes1.csv")
+ds %>% 
+  ggplot(aes(x=(target),y=glucose))+ 
+  geom_boxplot(fill='violet',outlier.colour='brown1')+ 
+  ggtitle("Glucose Level with respect to Patients")+ 
+  xlab('Patients')
+
+ds %>% 
+  ggplot(aes(x=target,y=bmi))+ 
+  geom_boxplot(fill='gray68',outlier.colour='brown1')+ 
+  ggtitle("Body Mass Index distribution")+ 
+  xlab('Patients')
+ds %>% 
+  ggplot(aes(x=target,y=pregnant))+ 
+  geom_boxplot(fill='blue1',outlier.colour='blue2')+ 
+  ggtitle("Pregnant w.r.t  Diabetes")+ 
+  xlab('Patients')+ 
+  ylab('Number Of times Pregnant')
+ds %>% 
+  ggplot(aes(x=diabetes,fill=target))+ 
+  geom_density(alpha=0.4)+
+  ggtitle("Diabetes Predictive function Distribution")+ 
+  xlab('diabetes level')
+
+# we have visualise important variables with respect to target variable ,
+#Now we will make Model
+################################################
+# making a function for confusion Matrix 
+################################################======
+#  Actual | Predicted --->
+#     |   |
+#     V        0                          1
+#=========|==========================================
+#    0
+#         |     TN                        FP
+# ----------------------------------------------------        
+#    1    |     FN                        TP
+#         |
+#=====================================================
+c_matrix <- function(x){
+  print(x)
+  accuracy=round((x[1,1]+x[2,2])/sum(x),3)*100
+  error_rate=round((x[2,1]+x[1,2])/sum(x),3)*100
+  sensitivity=round((x[2,2])/sum(x[2,]),3)*100
+  specificity =round((x[1,1])/sum(x[1,]),3)*100
+  false_negative_error_rate <- (100-sensitivity)
+  false_positive_error_rate <- (100-specificity)
+  precision <- round(x[2,2]/sum(x[,2]),3)*100
+  print(paste("Overall Accuracy ",accuracy,"%"))
+  print(paste("Overall error rate ",error_rate,"%"))
+  print(paste("Sensitivity ",sensitivity,"%"))
+  print(paste("Specificity ", specificity,"%"))
+  print(paste("False Negative Error Rate ",  false_negative_error_rate,"%" ))
+  print(paste("False Positive Error rate ",  false_positive_error_rate,"%"))
+  print(paste("precision ", precision,"%"))
+
+}
+
+####### Partioning the data set
+set.seed(2209)
+split <- sample.split(ds$target)
+train <- subset(ds,split==TRUE)
+test<- subset(ds,split==FALSE)
+
+
+#verifying the percentage of train test distribution
+table(train$target) %>% prop.table()
+table(test$target) %>% prop.table()
+
+# making first logistic regression model:
+set.seed(2209)
+fit_control<-trainControl(method="repeatedcv",repeats = 3,number=10)
+
+rf_model <- train(target~.,data=train,method="rf",
+                  trControl=fit_control,
+                  )
+
+p1<- predict(rf_model,test)
+Rocrperf<-performance(p1,"tpr","fpr")
+
+tab1 <- table(test$target,p1)
+
+c_matrix(tab1)
+
+varImp(rf_model)
+
+rf_model2 <- train( target ~pregnant+glucose+diastolic+bmi+diabetes+age,data=train,method="rf",
+                   trControl=fit_control)
+
+p2 <- predict(rf_model2,test)
+
+
+tab2 <- table(test$target,p2)
+
+c_matrix(tab2)
+
+log_model<- train(
+  target ~pregnant+glucose+diastolic+bmi+diabetes+age, 
+  data = train, 
+  method = "glm",
+  family = "binomial",
+  trControl =fit_control
+)
+
+p3 <- predict(log_model,test)
+
+tab3 <- table(test$target,p2)
+
+c_matrix(tab3)
