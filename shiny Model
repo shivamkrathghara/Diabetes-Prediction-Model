@@ -1,0 +1,86 @@
+
+
+
+setwd("C:/Users/shivam/Documents/DIABETES_PREDICTION_MODEL")
+
+# Import libraries
+library(shiny)
+library(data.table)
+library(shinythemes)
+setwd("C:/Users/shivam/Documents/DIABETES_PREDICTION_MODEL")
+
+# Import libraries
+library(shiny)
+library(data.table)
+
+
+
+
+
+# Training set
+TrainSet <- read.csv("training.csv", header = TRUE)
+TrainSet <- TrainSet[,-1]
+
+ui <- fluidPage(theme=shinytheme("superhero"),
+    
+    # Application title
+    titlePanel("Indian Women Diabetes Prediction"),
+    
+    # Sidebar with a slider input for number of bins 
+    sidebarLayout(
+        sidebarPanel(
+            numericInput("pregnant","Number of times Pregnant",min=0,max=10,step=1,value=0),
+            sliderInput("glucose","glucose_level",min=0,max=100,step=1,value=1),
+            sliderInput("diastolic",'diastolic_level',min=5,max=150,step=1,value=80),
+            numericInput("bmi",'bmi level',min=20,max=150,step=1,value=80),
+            numericInput("diabetes",'diabetes_level',min=0,max=3,step=.01,value=1.1),
+            numericInput("age",'age',min=15,max=100,step=1,value=35),
+            actionButton("go","predict")
+            
+            
+        ),
+        
+        # Show a plot of the generated distribution
+        mainPanel(
+            headerPanel("Logistic Regression Based Model "),
+            tableOutput("tabledata")
+            
+        )
+    )
+)
+
+server<- function(input, output, session) {
+    
+    # Input Data
+    datasetInput <- eventReactive(input$go,{ 
+        model <- readRDS("dpiw.rds")
+        
+        df <- data.frame(
+            Name = c("pregnant","glucose", "diastolic","bmi","diabetes","age"),
+            Value = as.character(c(input$pregnant,input$glucose,
+                                   input$diastolic,input$bmi,
+                                   input$diabetes,
+                                   input$age)),
+            stringsAsFactors = FALSE)
+        
+        target <- 0
+        df <- rbind(df, target)
+        input <- transpose(df)
+        write.table(input,"input.csv", sep=",", quote = FALSE, row.names = FALSE, col.names = FALSE)
+        
+        test <- read.csv(paste("input", ".csv", sep=""), header = TRUE)
+        
+        Output <- data.frame(Prediction=predict(model,test,,type='prob'))
+        print(Output)
+        
+    })
+    
+    output$tabledata <- renderTable({
+        datasetInput()
+    })
+}
+shinyApp(ui = ui, server = server)
+
+
+
+
