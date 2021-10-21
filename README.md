@@ -25,10 +25,12 @@ Age (years)
 test
 test whether the patient shows signs of diabetes (coded 0 if negative, 1 if positive)
 
-**Data Exploration & Modelling 
+**Data Exploration & Modelling**
 in this section we found that some variables have minimum values assigned to zero like skin thickness , glucose , so we replace these zeroes with median values.
 since data is not in very large number so we fill them by median values. Then we have done Univariate and biavriate analysis.
-after this step we make our Model which is based on logistic regression which has an accuracy of 77 % **
+after this step we make our Model which is based on logistic regression which has an accuracy of 77 %.
+
+The Model is deployed over R shiny package which gives probability of present and not present of the dataset.
 
 
 
